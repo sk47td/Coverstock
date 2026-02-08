@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="manifest" href="manifest.json">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cover Stock Cloud</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{ --blue:#2563eb; --green:#16a34a; --red:#dc2626; --gray:#64748b; --light:#f8fafc; }
+body{ font-family:'Inter',sans-serif; background:var(--light); margin:0; padding:12px; color:#1e293b; }
+header{ font-size:22px; font-weight:700; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; }
+#status { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; }
+
+/* Fixed Alignment for Topbar */
+.topbar { display: flex; gap: 8px; margin-bottom: 12px; align-items: stretch; height: 48px; }
+#searchField { flex: 1; padding: 0 12px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-size: 14px; margin-bottom: 0; outline: none; }
+.btn-icon { width: 48px; height: 48px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 20px; background: #fff; border: 1.5px solid #cbd5e1; border-radius: 10px; cursor: pointer; padding: 0; box-sizing: border-box; }
+
+input, select { padding:12px; border-radius:10px; border:1.5px solid #cbd5e1; font-size:14px; width:100%; margin-bottom:10px; box-sizing: border-box; }
+.btn { background:var(--blue); color:#fff; padding:14px; border-radius:12px; font-size:16px; font-weight:600; border:none; cursor:pointer; width:100%; }
+.btn-top { width:auto; padding:10px 18px; }
+
+#filterMenu { display: none; margin-bottom: 15px; }
+.filter-group { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.filter-btn { background:#fff; border:1px solid #cbd5e1; padding:8px 14px; border-radius:20px; font-size:12px; cursor:pointer; font-weight:600; color: var(--gray); }
+.filter-btn.active { background:var(--blue); color:#fff; border-color: var(--blue); }
+
+.card { background:#fff; border-radius:16px; padding:16px; margin-bottom:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); }
+.design-header { display:flex; justify-content:space-between; align-items:center; cursor: pointer; padding-bottom: 8px; }
+.design-title { font-weight:700; color:var(--blue); text-transform:uppercase; font-size:12px; display: flex; align-items: center; gap: 8px; }
+.model-row { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #f1f5f9; }
+.controls { display:flex; align-items:center; gap:12px; }
+.action { width:36px; height:36px; border-radius:10px; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; font-weight: bold; }
+.add { background:var(--green); } .sub { background:var(--red); } .del { background:var(--gray); opacity:0.4; }
+.edit-name { font-size: 16px; cursor: pointer; color: var(--gray); margin-left: auto; padding: 5px; }
+.stock { min-width:30px; text-align:center; font-weight:700; font-size: 16px; }
+.low { color:var(--red); font-weight: 800; }
+.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+    <span>📱 Phonezone</span>
+    <span id="status" style="background: #fee2e2; color: #ef4444;">Offline</span>
+    <button class="btn btn-top" id="addToggle">＋ Add</button>
+</header>
+
+<div class="topbar">
+  <input id="searchField" placeholder="Search brands or models..." autocomplete="off">
+  <button class="btn-icon" id="filterToggle">⚙️</button>
+</div>
+
+<div id="filterMenu" class="card">
+    <div class="filter-group">
+        <button id="f-low" class="filter-btn">Low Stock (< 2)</button>
+        <button id="f-out" class="filter-btn">Out of Stock</button>
+    </div>
+    <div id="brandList" class="filter-group"></div>
+</div>
+
+<div id="addPanel" class="card" style="display:none">
+  <select id="selDesign"></select>
+  <input id="inDesign" placeholder="OR New Design Name">
+  <input id="inBrand" placeholder="Brand">
+  <input id="inModel" placeholder="Model">
+  <input id="inStock" type="number" placeholder="Initial Stock" value="0">
+  <button id="saveBtn" class="btn">SAVE TO CLOUD</button>
+</div>
+
+<div id="listView"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAmKUGD5Jx7E86DwJRi42sZd3t7bdwvzXo",
+    authDomain: "coverstock-3d6b0.firebaseapp.com",
+    databaseURL: "https://coverstock-3d6b0-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "coverstock-3d6b0",
+    storageBucket: "coverstock-3d6b0.firebasestorage.app",
+    messagingSenderId: "82971824678",
+    appId: "1:82971824678:web:8b00d96b9e84d840cc8ce7"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const inventoryRef = ref(db, 'inventory');
+  const connectedRef = ref(db, '.info/connected');
+
+  let store = JSON.parse(localStorage.getItem('phonezone_db')) || { designs: [], lastSync: 0 };
+  let collapsedStates = {}; 
+  let currBrand = 'ALL';
+  let filterLow = false, filterOut = false;
+
+  // Natural Sort Function
+  const naturalSort = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+
+  const renderList = () => {
+    const list = document.getElementById('listView');
+    const sel = document.getElementById('selDesign');
+    const bGroup = document.getElementById('brandList');
+    const q = document.getElementById('searchField').value.toLowerCase();
+    
+    if(!list) return;
+    list.innerHTML = "";
+    const prevVal = sel.value;
+    sel.innerHTML = '<option value="">-- Use Existing Design --</option>';
+
+    const brands = new Set();
+    store.designs.forEach(d => (d.models || []).forEach(m => brands.add(m.name.split(' ')[0])));
+    
+    bGroup.innerHTML = `<button class="filter-btn ${currBrand==='ALL'?'active':''}" onclick="setBrand('ALL')">All</button>`;
+    Array.from(brands).sort().forEach(b => {
+      bGroup.innerHTML += `<button class="filter-btn ${currBrand===b?'active':''}" onclick="setBrand('${b}')">${b}</button>`;
+    });
+
+    // Sort Designs Naturally
+    store.designs.sort(naturalSort).forEach(des => {
+      const opt = document.createElement('option');
+      opt.value = des.id; opt.innerText = des.name;
+      sel.appendChild(opt);
+
+      let filtered = (des.models || []).filter(m => {
+        const mS = m.name.toLowerCase().includes(q);
+        const mB = currBrand === 'ALL' || m.name.toUpperCase().startsWith(currBrand);
+        let mStat = true;
+        if(filterLow) mStat = (m.stock > 0 && m.stock < 2);
+        if(filterOut) mStat = (m.stock === 0);
+        return mS && mB && mStat;
+      });
+
+      if (filtered.length === 0) return;
+
+      // Sort Models Naturally
+      filtered.sort(naturalSort);
+
+      const isCol = collapsedStates[des.id];
+      const card = document.createElement('div');
+      card.className = "card";
+      card.innerHTML = `
+        <div class="design-header" onclick="toggleCol(${des.id})">
+            <div class="design-title"><span>${isCol ? '▶' : '▼'}</span> ${des.name}</div>
+            <span class="edit-name" onclick="event.stopPropagation(); renameDesign(${des.id})">✏️</span>
+        </div>
+        <div class="model-list ${isCol ? 'hidden' : ''}">
+            ${filtered.map(m => `
+                <div class="model-row">
+                    <div style="font-weight:500">${m.name}</div>
+                    <div class="controls">
+                        <div class="action sub" onclick="modStock(${des.id}, ${m.id}, -1)">−</div>
+                        <div class="stock ${m.stock < 2 ? 'low' : ''}">${m.stock}</div>
+                        <div class="action add" onclick="modStock(${des.id}, ${m.id}, 1)">＋</div>
+                        <div class="action del" onclick="killModel(${des.id}, ${m.id})">🗑</div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>`;
+      list.appendChild(card);
+    });
+    sel.value = prevVal;
+  };
+
+  const performSync = () => {
+    store.lastSync = Date.now();
+    localStorage.setItem('phonezone_db', JSON.stringify(store));
+    set(inventoryRef, store);
+    renderList();
+  };
+
+  onValue(connectedRef, (snap) => {
+    const s = document.getElementById('status');
+    if (snap.val() === true) {
+        s.innerText = "Online"; s.style.background = "#dcfce7"; s.style.color = "#16a34a";
+    } else {
+        s.innerText = "Offline"; s.style.background = "#fee2e2"; s.style.color = "#ef4444";
+    }
+  });
+
+  onValue(inventoryRef, (snapshot) => {
+    const cloudData = snapshot.val();
+    if (cloudData && cloudData.lastSync > store.lastSync) {
+        store = cloudData;
+        localStorage.setItem('phonezone_db', JSON.stringify(store));
+        renderList();
+    }
+  });
+
+  window.setBrand = (b) => { currBrand = b; renderList(); };
+  window.toggleCol = (id) => { collapsedStates[id] = !collapsedStates[id]; renderList(); };
+  window.renameDesign = (id) => {
+    const des = store.designs.find(d => d.id === id);
+    const n = prompt("New Name:", des.name);
+    if(n) { des.name = n.trim(); performSync(); }
+  };
+  window.modStock = (dId, mId, amt) => {
+    const d = store.designs.find(d => d.id === dId);
+    const m = d.models.find(m => m.id === mId);
+    m.stock = Math.max(0, m.stock + amt);
+    performSync();
+  };
+  window.killModel = (dId, mId) => {
+    if(!confirm("Delete?")) return;
+    const dIdx = store.designs.findIndex(d => d.id === dId);
+    store.designs[dIdx].models = store.designs[dIdx].models.filter(m => m.id !== mId);
+    if(!store.designs[dIdx].models.length) store.designs.splice(dIdx, 1);
+    performSync();
+  };
+
+  document.getElementById('saveBtn').onclick = () => {
+    const b = document.getElementById('inBrand').value.trim().toUpperCase();
+    const m = document.getElementById('inModel').value.trim().toUpperCase();
+    const s = parseInt(document.getElementById('inStock').value) || 0;
+    const dIn = document.getElementById('inDesign').value.trim();
+    const dSel = document.getElementById('selDesign');
+    const dName = dIn || dSel.options[dSel.selectedIndex].text;
+
+    if(!b || !m || dName.includes("--")) return alert("Check Brand/Model/Design");
+
+    let dIdx = store.designs.findIndex(d => d.name.toLowerCase() === dName.toLowerCase());
+    if(dIdx === -1) {
+        store.designs.push({ id: Date.now(), name: dName, models: [] });
+        dIdx = store.designs.length - 1;
+    }
+
+    const full = b + " " + m;
+    const mIdx = store.designs[dIdx].models.findIndex(mod => mod.name === full);
+    if(mIdx > -1) store.designs[dIdx].models[mIdx].stock += s;
+    else store.designs[dIdx].models.push({ id: Date.now(), name: full, stock: s });
+
+    document.getElementById('inModel').value = "";
+    performSync();
+  };
+
+  document.getElementById('f-low').onclick = () => { filterLow = !filterLow; filterOut = false; renderList(); };
+  document.getElementById('f-out').onclick = () => { filterOut = !filterOut; filterLow = false; renderList(); };
+  document.getElementById('searchField').oninput = renderList;
+  document.getElementById('addToggle').onclick = () => { 
+    const p = document.getElementById('addPanel'); p.style.display = p.style.display==='none'?'block':'none';
+  };
+  document.getElementById('filterToggle').onclick = () => {
+    const m = document.getElementById('filterMenu'); m.style.display = m.style.display==='none'?'block':'none';
+  };
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+
+  renderList();
+</script>
+</body>
+</html>
