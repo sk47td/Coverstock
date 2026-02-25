@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Phonezone Stock Cloud</title>
-<link rel="manifest" href="manifest.js">
+<link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
@@ -15,40 +15,10 @@ body{ font-family:'Inter',sans-serif; background:var(--light); margin:0; padding
 header{ font-size:22px; font-weight:700; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; }
 #status { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; }
 
-/* Summary Bar */
-.summary-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
-.stat-box { background: #fff; padding: 12px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-.stat-val { display: block; font-size: 18px; font-weight: 800; color: var(--blue); }
-.stat-lbl { font-size: 10px; color: var(--gray); font-weight: 600; text-transform: uppercase; }
-.stat-alert { color: var(--red); }
+.topbar { display: flex; gap: 8px; margin-bottom: 15px; align-items: stretch; height: 46px; }
+#searchField { flex: 1; padding: 0 15px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; font-size: 14px; outline: none; box-sizing: border-box; }
+.btn-icon { width: 46px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 18px; background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; padding: 0; box-sizing: border-box; color: var(--gray); }
 
-/* Sleek Search Bar & Settings Alignment */
-.topbar { 
-    display: flex; 
-    gap: 8px; 
-    margin-bottom: 15px; 
-    align-items: stretch; /* Forces equal height */
-    height: 46px; /* Define a fixed height for the row */
-}
-
-#searchField { flex: 1; height: 46px; padding: 0 15p; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; font-size: 14px; outline: none; box-sizing: border-box; transition: border-color 0.2s; }
-#searchField:focus { border-color: var(--blue); }
-.btn-icon { 
-    width: 46px; /* Matches the height for a perfect square */
-    flex: none; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    font-size: 18px; /* Balanced icon size */
-    background: #fff; 
-    border: 1px solid #cbd5e1; 
-    border-radius: 12px; 
-    cursor: pointer; 
-    padding: 0;
-    box-sizing: border-box;
-    color: var(--gray);
-}
-    
 input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; font-size:14px; width:100%; margin-bottom:10px; box-sizing: border-box; }
 .btn { background:var(--blue); color:#fff; padding:14px; border-radius:12px; font-size:16px; font-weight:600; border:none; cursor:pointer; width:100%; margin-bottom: 8px; }
 .btn-top { width:auto; padding:8px 16px; margin-bottom: 0; }
@@ -56,12 +26,12 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
 
 #filterMenu { display: none; margin-bottom: 15px; }
 .filter-group { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-.filter-btn { background:#fff; border:1px solid #cbd5e1; padding:8px 14px; border-radius:20px; font-size:12px; cursor:pointer; font-weight:600; color: var(--gray); transition: 0.2s; }
+.filter-btn { background:#fff; border:1px solid #cbd5e1; padding:8px 14px; border-radius:20px; font-size:12px; cursor:pointer; font-weight:600; color: var(--gray); }
 .filter-btn.active { background:var(--blue); color:#fff; border-color: var(--blue); }
 
 .card { background:#fff; border-radius:16px; padding:16px; margin-bottom:12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
 .design-header { display:flex; justify-content:space-between; align-items:center; cursor: pointer; padding-bottom: 8px; }
-.design-title { font-weight:700; color:var(--blue); text-transform:uppercase; font-size:12px; display: flex; align-items: center; gap: 8px; }
+.design-title { font-weight:700; color:var(--blue); text-transform:uppercase; font-size:12px; display: flex; align-items: center; gap: 6px; }
 .model-row { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #f1f5f9; }
 .controls { display:flex; align-items:center; gap:12px; }
 .action { width:36px; height:36px; border-radius:10px; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; font-weight: bold; }
@@ -79,21 +49,6 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
     <button class="btn btn-top" id="addToggle">＋ Add</button>
 </header>
 
-<div class="summary-bar" id="summaryBar">
-    <div class="stat-box">
-        <span class="stat-val" id="statDesigns">0</span>
-        <span class="stat-lbl">Designs</span>
-    </div>
-    <div class="stat-box">
-        <span class="stat-val" id="statItems">0</span>
-        <span class="stat-lbl">Total Qty</span>
-    </div>
-    <div class="stat-box">
-        <span class="stat-val stat-alert" id="statAlerts">0</span>
-        <span class="stat-lbl">Alerts</span>
-    </div>
-</div>
-
 <div class="topbar">
   <input id="searchField" placeholder="Search (e.g. A54 or A 54)..." autocomplete="off">
   <button class="btn-icon" id="filterToggle">⚙️</button>
@@ -101,7 +56,7 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
 
 <div id="filterMenu" class="card">
     <div class="filter-group">
-        <button id="f-low" class="filter-btn">Low Stock (< 2)</button>
+        <button id="f-low" class="filter-btn">Low Stock (1 Left)</button>
         <button id="f-out" class="filter-btn">Out of Stock</button>
     </div>
     <div id="brandList" class="filter-group"></div>
@@ -115,9 +70,8 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
   <input id="inModel" placeholder="Model (e.g. A54 / A53)">
   <input id="inStock" type="number" placeholder="Initial Stock" value="0">
   <button id="saveBtn" class="btn">SAVE TO CLOUD</button>
-  
   <div style="border: 2px dashed var(--blue); padding: 10px; border-radius: 12px; text-align: center; margin-top: 15px;">
-    <p style="font-size: 11px; margin-bottom: 8px; font-weight: 700; color: var(--blue);">BULK EXCEL UPLOAD</p>
+    <p style="font-size: 11px; font-weight: 700; color: var(--blue);">EXCEL UPLOAD</p>
     <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" style="display: none;">
     <button class="btn" onclick="document.getElementById('excelUpload').click()" style="background: var(--gray); font-size: 12px; padding: 10px;">📁 Select Excel File</button>
   </div>
@@ -152,13 +106,23 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
   const normalize = (t) => t.toLowerCase().replace(/[^a-z0-9]/g, '');
   const naturalSort = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true });
 
+  // Function to calculate global stock for a model name
+  const getGlobalStock = (modelName) => {
+    let total = 0;
+    store.designs.forEach(d => {
+        (d.models || []).forEach(m => {
+            if (m.name === modelName) total += m.stock;
+        });
+    });
+    return total;
+  };
+
   const renderList = () => {
     const list = document.getElementById('listView');
     const sel = document.getElementById('selDesign');
     const bGroup = document.getElementById('brandList');
     const query = normalize(document.getElementById('searchField').value);
     
-    let totalItems = 0, totalAlerts = 0;
     document.getElementById('f-low').className = filterLow ? 'filter-btn active' : 'filter-btn';
     document.getElementById('f-out').className = filterOut ? 'filter-btn active' : 'filter-btn';
 
@@ -167,29 +131,21 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
     sel.innerHTML = '<option value="">-- Use Existing Design --</option>';
 
     const brands = new Set();
-    store.designs.forEach(d => (d.models || []).forEach(m => {
-        brands.add(m.name.split(' ')[0]);
-        totalItems += m.stock;
-        if(m.stock < 2) totalAlerts++;
-    }));
-
-    document.getElementById('statDesigns').innerText = store.designs.length;
-    document.getElementById('statItems').innerText = totalItems;
-    document.getElementById('statAlerts').innerText = totalAlerts;
-
-    bGroup.innerHTML = `<button class="filter-btn ${currBrand==='ALL'?'active':''}" onclick="setBrand('ALL')">All</button>`;
-    Array.from(brands).sort().forEach(b => {
-      bGroup.innerHTML += `<button class="filter-btn ${currBrand===b?'active':''}" onclick="setBrand('${b}')">${b}</button>`;
-    });
+    store.designs.forEach(d => (d.models || []).forEach(m => brands.add(m.name.split(' ')[0])));
 
     store.designs.sort(naturalSort).forEach(des => {
       sel.innerHTML += `<option value="${des.id}">${des.name}</option>`;
+      const designQty = (des.models || []).reduce((sum, m) => sum + m.stock, 0);
+
       let filtered = (des.models || []).filter(m => {
         const mS = normalize(m.name).includes(query);
         const mB = currBrand === 'ALL' || m.name.toUpperCase().startsWith(currBrand);
+        
+        const globalStock = getGlobalStock(m.name);
         let mSt = true;
-        if(filterLow) mSt = (m.stock > 0 && m.stock < 2);
-        if(filterOut) mSt = (m.stock === 0);
+        if(filterLow) mSt = (globalStock === 1); // Mark Low only if 1 left globally
+        if(filterOut) mSt = (globalStock === 0); // Mark Out only if 0 left globally
+        
         return mS && mB && mSt;
       });
 
@@ -201,22 +157,34 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
       card.className = "card";
       card.innerHTML = `
         <div class="design-header" onclick="toggleCol(${des.id})">
-            <div class="design-title"><span>${isCol ? '▶' : '▼'}</span> ${des.name}</div>
-            <span style="color:var(--gray); font-size:16px;" onclick="event.stopPropagation(); renameDesign(${des.id})">✏️</span>
+            <div class="design-title">
+                <span>${isCol ? '▶' : '▼'}</span> 
+                ${des.name} <small style="color:var(--gray); text-transform:none;">(${designQty} pcs)</small>
+            </div>
+            <div style="display:flex; gap:12px;">
+                <span style="font-size:16px;" onclick="event.stopPropagation(); renameDesign(${des.id})">✏️</span>
+                <span style="font-size:16px; color:var(--red);" onclick="event.stopPropagation(); deleteFullDesign(${des.id})">🗑️</span>
+            </div>
         </div>
-        <div class="${isCol ? 'hidden' : ''}">${filtered.map(m => `
+        <div class="${isCol ? 'hidden' : ''}">${filtered.map(m => {
+            const globalStock = getGlobalStock(m.name);
+            return `
             <div class="model-row">
                 <div style="font-weight:500; font-size:14px; flex:1;">${m.name}</div>
                 <div class="controls">
                     <div class="action sub" onclick="modStock(${des.id}, ${m.id}, -1)">−</div>
-                    <div class="stock ${m.stock < 2 ? 'low' : ''}">${m.stock}</div>
+                    <div class="stock ${(globalStock === 1 || globalStock === 0) ? 'low' : ''}">${m.stock}</div>
                     <div class="action add" onclick="modStock(${des.id}, ${m.id}, 1)">＋</div>
                     <div class="action del" onclick="killModel(${des.id}, ${m.id})">🗑</div>
                 </div>
-            </div>`).join('')}</div>`;
+            </div>`}).join('')}</div>`;
       list.appendChild(card);
     });
-    sel.value = prevVal;
+    bGroup.innerHTML = `<button class="filter-btn ${currBrand==='ALL'?'active':''}" onclick="setBrand('ALL')">All</button>`;
+    Array.from(brands).sort().forEach(b => {
+      bGroup.innerHTML += `<button class="filter-btn ${currBrand===b?'active':''}" onclick="setBrand('${b}')">${b}</button>`;
+    });
+    if (prevVal) sel.value = prevVal;
   };
 
   const performSync = () => {
@@ -246,6 +214,13 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
 
   window.setBrand = (b) => { currBrand = b; renderList(); };
   window.toggleCol = (id) => { collapsedStates[id] = !collapsedStates[id]; renderList(); };
+  window.deleteFullDesign = (id) => {
+    const d = store.designs.find(x => x.id === id);
+    if(confirm(`Delete ALL items under "${d.name}"?`)) {
+        store.designs = store.designs.filter(x => x.id !== id);
+        performSync();
+    }
+  };
   window.renameDesign = (id) => {
     const d = store.designs.find(x => x.id === id);
     const n = prompt("New Name:", d.name);
@@ -268,21 +243,20 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
   window.downloadPDF = () => {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    const query = normalize(document.getElementById('searchField').value);
     const data = [];
     store.designs.forEach(des => {
         let filtered = (des.models || []).filter(m => {
-            const mS = normalize(m.name).includes(query);
+            const mS = normalize(m.name).includes(normalize(document.getElementById('searchField').value));
             const mB = currBrand === 'ALL' || m.name.toUpperCase().startsWith(currBrand);
+            const gs = getGlobalStock(m.name);
             let mSt = true;
-            if(filterLow) mSt = (m.stock > 0 && m.stock < 2);
-            if(filterOut) mSt = (m.stock === 0);
+            if(filterLow) mSt = (gs === 1);
+            if(filterOut) mSt = (gs === 0);
             return mS && mB && mSt;
         });
-        filtered.forEach(m => data.push([des.name, m.name, m.stock === 0 ? "OUT" : m.stock]));
+        filtered.forEach(m => data.push([des.name, m.name, m.stock]));
     });
-    if(!data.length) return alert("Nothing to show!");
-    doc.text("Phonezone Filtered Report", 14, 20);
+    doc.text("Phonezone Stock Report", 14, 20);
     doc.autoTable({ startY: 25, head: [['Design', 'Model', 'Qty']], body: data, headStyles: {fillColor: [37, 99, 235]} });
     doc.save(`Phonezone_Report.pdf`);
   };
@@ -291,8 +265,7 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
     const file = e.target.files[0];
     const reader = new FileReader();
     reader.onload = (evt) => {
-        const data = new Uint8Array(evt.target.result);
-        const wb = XLSX.read(data, {type: 'array'});
+        const wb = XLSX.read(new Uint8Array(evt.target.result), {type: 'array'});
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
         rows.forEach(r => {
             const desN = (r.Design || "").trim(), brand = (r.Brand || "").trim().toUpperCase(), model = (r.Model || "").trim().toUpperCase(), stock = parseInt(r.Stock) || 0;
@@ -304,21 +277,24 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
             if(mIdx > -1) store.designs[dIdx].models[mIdx].stock += stock;
             else store.designs[dIdx].models.push({id: Date.now()+Math.random(), name: full, stock});
         });
-        performSync(); alert("Uploaded Successfully!");
+        performSync(); alert("Success!");
     };
     reader.readAsArrayBuffer(file);
   };
 
   document.getElementById('saveBtn').onclick = () => {
-    const b = document.getElementById('inBrand').value.trim().toUpperCase(), m = document.getElementById('inModel').value.trim().toUpperCase(), s = parseInt(document.getElementById('inStock').value) || 0, dIn = document.getElementById('inDesign').value.trim(), dSel = document.getElementById('selDesign'), dName = dIn || dSel.options[dSel.selectedIndex].text;
-    if(!b || !m || dName.includes("--")) return alert("Missing Info");
+    const b = document.getElementById('inBrand').value.trim().toUpperCase(), mEl = document.getElementById('inModel'), m = mEl.value.trim().toUpperCase(), s = parseInt(document.getElementById('inStock').value) || 0, dIn = document.getElementById('inDesign'), dSel = document.getElementById('selDesign'), dName = dIn.value.trim() || dSel.options[dSel.selectedIndex].text;
+    if(!b || !m || dName.includes("--")) return alert("Check Fields");
     let dIdx = store.designs.findIndex(d => d.name.toLowerCase() === dName.toLowerCase());
     if(dIdx === -1) { store.designs.push({id: Date.now(), name: dName, models: []}); dIdx = store.designs.length-1; }
+    const targetId = store.designs[dIdx].id;
     const full = `${b} ${m}`;
     const mIdx = store.designs[dIdx].models.findIndex(x => x.name === full);
     if(mIdx > -1) store.designs[dIdx].models[mIdx].stock += s;
     else store.designs[dIdx].models.push({id: Date.now(), name: full, stock: s});
-    document.getElementById('inModel').value = ""; performSync();
+    dIn.value = ""; mEl.value = ""; mEl.focus(); 
+    performSync();
+    setTimeout(() => { dSel.value = targetId; }, 100);
   };
 
   document.getElementById('f-low').onclick = () => { filterLow = !filterLow; filterOut = false; renderList(); };
@@ -331,7 +307,6 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
   document.getElementById('filterToggle').onclick = () => {
     const m = document.getElementById('filterMenu'); m.style.display = m.style.display==='none'?'block':'none';
   };
-
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
   renderList();
 </script>
