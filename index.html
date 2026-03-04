@@ -46,7 +46,7 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
 .card { background:#fff; border-radius:16px; padding:16px; margin-bottom:12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
 .design-header { display:flex; justify-content:space-between; align-items:center; cursor: pointer; padding-bottom: 8px; }
 .design-title { font-weight:700; color:var(--blue); text-transform:uppercase; font-size:12px; display: flex; align-items: center; gap: 6px; }
-.model-row { display:flex; justify-content:space-between; align-items:center; padding: 10px 0; border-bottom:1px solid #f1f5f9; }
+.model-row { display:flex; justify-content:space-between; align-items:center; padding: 10px 0; border-bottom:1px solid #f1f5f9; user-select: none; }
 .controls { display:flex; align-items:center; gap:12px; }
 .action { width:34px; height:34px; border-radius:10px; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size: 18px; font-weight: bold; }
 .add { background:var(--green); } .sub { background:var(--red); }
@@ -101,7 +101,6 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
   <input id="inModel" placeholder="Model (e.g. A54)">
   <input id="inStock" type="number" placeholder="Initial Stock" value="0">
   <button id="saveBtn" class="btn">SAVE TO CLOUD</button>
-  
   <div style="border: 1.5px dashed var(--blue); padding: 10px; border-radius: 12px; text-align: center; margin-top: 15px;">
     <button class="btn" id="downloadTemplate" style="background: #1d6f42; font-size: 12px; padding: 10px; width: 100%;">📑 Template</button>
     <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" style="display: none;">
@@ -137,6 +136,7 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
   let currBrand = 'ALL';
   let currDesignFilter = 'ALL';
   let filterLow = false, filterOut = false;
+  let longPressTimer;
 
   const normalize = (t) => (t || "").toLowerCase().replace(/[^a-z0-9]/g, '');
   const naturalSort = (a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true });
@@ -212,7 +212,12 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
             </div>
         </div>
         <div class="${collapsedStates[des.id] ? 'hidden' : ''}">${filtered.map(m => `
-            <div class="model-row">
+            <div class="model-row" 
+                 onmousedown="handlePressStart(${des.id}, ${m.id})" 
+                 onmouseup="handlePressEnd()" 
+                 onmouseleave="handlePressEnd()"
+                 ontouchstart="handlePressStart(${des.id}, ${m.id})" 
+                 ontouchend="handlePressEnd()">
                 <div style="font-size:14px; flex:1;">${highlightText(m.name, searchVal)}</div>
                 <div class="controls">
                     <div class="action sub" onclick="modStock(${des.id}, ${m.id}, -1)">−</div>
@@ -224,13 +229,11 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
     });
 
     document.getElementById('resultCount').innerText = searchVal ? `Found ${totalFound} items` : `Showing all items`;
-    
     bGroup.innerHTML = `<button class="filter-btn ${currBrand==='ALL'?'active':''}" onclick="setBrand('ALL')">All</button>`;
     Array.from(brands).sort().forEach(b => { bGroup.innerHTML += `<button class="filter-btn ${currBrand===b?'active':''}" onclick="setBrand('${b}')">${b}</button>`; });
     dGroup.innerHTML = `<button class="filter-btn ${currDesignFilter==='ALL'?'active':''}" onclick="setDesignFilter('ALL')">All</button>`;
     Array.from(designsSet).sort().forEach(d => { dGroup.innerHTML += `<button class="filter-btn ${currDesignFilter===d?'active':''}" onclick="setDesignFilter('${d}')">${d}</button>`; });
     
-    // Safety check for selecting previous or newly added design
     if (prevSel) sel.value = prevSel;
   };
 
@@ -239,6 +242,28 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
     localStorage.setItem('phonezone_db', JSON.stringify(store));
     set(inventoryRef, store);
     renderList();
+  };
+
+  /* Long Press Logic */
+  window.handlePressStart = (desId, modelId) => {
+    longPressTimer = setTimeout(() => {
+        killModel(desId, modelId);
+    }, 800); // 0.8 seconds long press
+  };
+
+  window.handlePressEnd = () => {
+    clearTimeout(longPressTimer);
+  };
+
+  window.killModel = (dId, mId) => {
+    if(confirm("Delete this model from the list?")) {
+        const dIdx = store.designs.findIndex(x => x.id === dId);
+        if (dIdx > -1) {
+            store.designs[dIdx].models = store.designs[dIdx].models.filter(x => x.id !== mId);
+            if(!store.designs[dIdx].models.length) store.designs.splice(dIdx, 1);
+            performSync();
+        }
+    }
   };
 
   onValue(connectedRef, (snap) => {
@@ -252,66 +277,18 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
     if (cloud && cloud.lastSync > store.lastSync) { store = cloud; renderList(); }
   });
 
-  /* Excel & PDF */
-  window.downloadFilteredPDF = () => {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const data = [];
-    const globalStockMap = getGlobalStockMap();
-    const searchVal = document.getElementById('searchField').value.trim();
-    const keywords = searchVal.toLowerCase().split(' ').filter(k => k.length > 0);
-
-    store.designs.forEach(des => {
-        let filtered = (des.models || []).filter(m => {
-            const mK = keywords.every(key => normalize(m.name).includes(normalize(key)) || normalize(des.name).includes(normalize(key)));
-            const mB = currBrand === 'ALL' || m.name.toUpperCase().startsWith(currBrand);
-            const mD = currDesignFilter === 'ALL' || des.name === currDesignFilter;
-            const gs = globalStockMap[m.name];
-            let mSt = true;
-            if(filterLow) mSt = (gs === 1);
-            if(filterOut) mSt = (gs === 0);
-            return mK && mB && mD && mSt;
-        });
-        filtered.forEach(m => data.push([des.name, m.name, m.stock]));
-    });
-    doc.text("Phonezone Stock Report", 14, 20);
-    doc.autoTable({ startY: 25, head: [['Design', 'Model', 'Qty']], body: data, headStyles: {fillColor: [37, 99, 235]} });
-    doc.save(`Phonezone_Report.pdf`);
-  };
-
-  document.getElementById('downloadTemplate').onclick = () => {
-    const ws = XLSX.utils.aoa_to_sheet([["Design", "Brand", "Model", "Stock"], ["Hard", "APPLE", "IPHONE 13", 10]]);
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Stock");
-    XLSX.writeFile(wb, "Phonezone_Template.xlsx");
-  };
-
-  document.getElementById('excelUpload').onchange = (e) => {
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-        const wb = XLSX.read(new Uint8Array(evt.target.result), {type: 'array'});
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-        rows.forEach(r => {
-            const dN = (r.Design || "").trim(), br = (r.Brand || "").trim().toUpperCase(), md = (r.Model || "").trim().toUpperCase(), st = parseInt(r.Stock) || 0;
-            if(!dN || !br || !md) return;
-            let dIdx = store.designs.findIndex(d => d.name.toLowerCase() === dN.toLowerCase());
-            if(dIdx === -1) { store.designs.push({id: Date.now()+Math.random(), name: dN, models: []}); dIdx = store.designs.length-1; }
-            const full = `${br} ${md}`;
-            const mIdx = store.designs[dIdx].models.findIndex(m => m.name === full);
-            if(mIdx > -1) store.designs[dIdx].models[mIdx].stock += st;
-            else store.designs[dIdx].models.push({id: Date.now()+Math.random(), name: full, stock: st});
-        });
-        performSync();
-    };
-    reader.readAsArrayBuffer(e.target.files[0]);
-  };
-
   /* Logic & Buttons */
   window.setBrand = (b) => { currBrand = b; renderList(); };
   window.setDesignFilter = (d) => { currDesignFilter = d; renderList(); };
   window.toggleCol = (id) => { collapsedStates[id] = !collapsedStates[id]; renderList(); };
   window.deleteFullDesign = (id) => { if(confirm("Delete design?")) { store.designs = store.designs.filter(x => x.id !== id); performSync(); } };
   window.renameDesign = (id) => { const d = store.designs.find(x => x.id === id); const n = prompt("New Name:", d.name); if(n) { d.name = n.trim(); performSync(); } };
-  window.modStock = (dId, mId, amt) => { const d = store.designs.find(x => x.id === dId); const m = d.models.find(x => x.id === mId); m.stock = Math.max(0, m.stock + amt); performSync(); };
+  window.modStock = (dId, mId, amt) => {
+    const d = store.designs.find(x => x.id === dId);
+    const m = d.models.find(x => x.id === mId);
+    m.stock = Math.max(0, m.stock + amt);
+    performSync();
+  };
 
   document.getElementById('chip-out').onclick = () => { filterOut = !filterOut; filterLow = false; renderList(); };
   document.getElementById('chip-low').onclick = () => { filterLow = !filterLow; filterOut = false; renderList(); };
@@ -320,7 +297,6 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
   document.getElementById('resetFilters').onclick = () => { currBrand = 'ALL'; currDesignFilter = 'ALL'; filterLow = false; filterOut = false; document.getElementById('searchField').value = ""; renderList(); };
   document.getElementById('filterToggle').onclick = () => { const m = document.getElementById('filterMenu'); m.style.display = m.style.display==='none'?'block':'none'; };
   document.getElementById('addToggle').onclick = () => { const p = document.getElementById('addPanel'); p.style.display = p.style.display==='none'?'block':'none'; };
-  document.getElementById('pdfBtn').onclick = window.downloadFilteredPDF;
   
   document.getElementById('saveBtn').onclick = () => {
     const brand = document.getElementById('inBrand').value.trim().toUpperCase();
@@ -346,21 +322,38 @@ input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; f
     if (mIdx > -1) store.designs[dIdx].models[mIdx].stock += stock;
     else store.designs[dIdx].models.push({ id: Date.now(), name: fullModel, stock: stock });
 
-    // Store the ID to auto-select it
-    const selectedDesignId = store.designs[dIdx].id;
-
-    // UI resets
+    const finalDesId = store.designs[dIdx].id;
     dIn.value = ""; modelEl.value = ""; modelEl.focus(); 
-    
-    performSync(); // This calls renderList which rebuilds the dropdown
-
-    // Auto-select the newly added or existing design
-    setTimeout(() => {
-        document.getElementById('selDesign').value = selectedDesignId;
-    }, 50);
+    performSync();
+    setTimeout(() => { document.getElementById('selDesign').value = finalDesId; }, 50);
   };
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+  document.getElementById('downloadTemplate').onclick = () => {
+    const ws = XLSX.utils.aoa_to_sheet([["Design", "Brand", "Model", "Stock"], ["Hard", "APPLE", "IPHONE 13", 10]]);
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Stock");
+    XLSX.writeFile(wb, "Phonezone_Template.xlsx");
+  };
+
+  document.getElementById('excelUpload').onchange = (e) => {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+        const wb = XLSX.read(new Uint8Array(evt.target.result), {type: 'array'});
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+        rows.forEach(r => {
+            const dN = (r.Design || "").trim(), br = (r.Brand || "").trim().toUpperCase(), md = (r.Model || "").trim().toUpperCase(), st = parseInt(r.Stock) || 0;
+            if(!dN || !br || !md) return;
+            let dIdx = store.designs.findIndex(d => d.name.toLowerCase() === dN.toLowerCase());
+            if(dIdx === -1) { store.designs.push({id: Date.now() + Math.random(), name: dN, models: []}); dIdx = store.designs.length-1; }
+            const full = `${br} ${md}`;
+            const mIdx = store.designs[dIdx].models.findIndex(m => m.name === full);
+            if(mIdx > -1) store.designs[dIdx].models[mIdx].stock += st;
+            else store.designs[dIdx].models.push({id: Date.now() + Math.random(), name: full, stock: st});
+        });
+        performSync();
+    };
+    reader.readAsArrayBuffer(e.target.files[0]);
+  };
+
   renderList();
 </script>
 </body>
