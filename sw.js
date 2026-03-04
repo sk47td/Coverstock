@@ -1,5 +1,9 @@
-const CACHE_NAME = 'phonezone-v6';
-const ASSETS = [
+/* Phonezone Stock Cloud - Service Worker 
+   Enables Offline Mode & Library Caching
+*/
+
+const CACHE_NAME = 'phonezone-stock-v8';
+const ASSETS_TO_CACHE = [
   './',
   './index.html',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap',
@@ -10,23 +14,35 @@ const ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
 ];
 
-// Installs the service worker and caches all required libraries
-self.addEventListener('install', (e) => {
+// Install and cache all resources
+self.addEventListener('install', (event) => {
   self.skipWaiting();
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(c => c.addAll(ASSETS))
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS_TO_CACHE);
+    })
   );
 });
 
-// Intercepts network requests to serve from cache when offline
-self.addEventListener('fetch', (e) => {
-  if (e.request.url.includes('firebasedatabase')) {
-    // Let Firebase handle its own offline persistence
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
-  } else {
-    // Serve other assets from cache first
-    e.respondWith(
-      caches.match(e.request).then(res => res || fetch(e.request))
-    );
-  }
+// Activate and clean up old caches
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      );
+    })
+  );
+});
+
+// Fetch logic: Serve from cache first, then network
+self.addEventListener('fetch', (event) => {
+  // Ignore Firebase Realtime Database requests (handled by Firebase SDK)
+  if (event.request.url.includes('firebasedatabase')) return;
+
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request);
+    })
+  );
 });
