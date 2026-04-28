@@ -2,359 +2,267 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Phonezone Stock Cloud</title>
-<link rel="manifest" href="manifest.json">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Phonezone Stock</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{ --blue:#2563eb; --green:#16a34a; --red:#dc2626; --orange:#f97316; --gray:#64748b; --light:#f8fafc; }
-body{ font-family:'Inter',sans-serif; background:var(--light); margin:0; padding:12px; color:#1e293b; -webkit-tap-highlight-color: transparent; }
-header{ font-size:22px; font-weight:700; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
-#status { font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 20px; text-transform: uppercase; }
+body{ font-family:'Inter',sans-serif; background:var(--light); margin:0; padding:10px; color:#1e293b; font-size: 13px; -webkit-tap-highlight-color: transparent; }
+header{ font-size:18px; font-weight:700; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
+#status { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 20px; text-transform: uppercase; }
+.online { background: #dcfce7; color: #16a34a; }
+.offline { background: #fee2e2; color: #ef4444; }
 
-.alert-bar { display: flex; gap: 10px; margin-bottom: 15px; }
-.alert-chip { flex: 1; padding: 10px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; cursor: pointer; border: 1.5px solid transparent; }
-.alert-chip.active { border-color: #000; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-.chip-val { font-size: 18px; font-weight: 800; }
-.chip-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; }
-.bg-red { background: #fee2e2; color: var(--red); }
-.bg-orange { background: #ffedd5; color: var(--orange); }
+.alert-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+.alert-chip { flex: 1; padding: 10px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; border: 2px solid transparent; cursor: pointer; transition: 0.2s; background: #fff;}
+.bg-red { color: var(--red); border-color: #fecaca; }
+.bg-orange { color: var(--orange); border-color: #fed7aa; }
+.alert-chip.active { border-color: #000; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); background: #f1f5f9; }
 
-.topbar { display: flex; gap: 8px; margin-bottom: 8px; align-items: stretch; height: 48px; }
-.search-container { flex: 1; position: relative; display: flex; align-items: top; }
-#searchField { width: 100%; height: 100%; padding: 0 40px 0 15px; border-radius: 12px; border: 1px solid #cbd5e1; background: #fff; font-size: 14px; outline: none; box-sizing: border-box; }
-#searchField:focus { border-color: var(--blue); }
-#clearSearch { height: 100%; position: absolute; right: 10px; font-size: 18px; color: var(--gray); cursor: pointer; display: none; border: none; background: none; }
-.btn-icon { width: 48px; height: 48px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 20px; background: #fff; border: 1px solid #cbd5e1; border-radius: 12px; cursor: pointer; color: var(--gray); box-sizing: border-box; }
+.topbar { display: flex; gap: 6px; margin-bottom: 10px; height: 44px; }
+#searchField { flex: 1; height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 14px; outline: none; }
+.btn-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; }
 
-#resultCount { font-size: 11px; color: var(--gray); margin-bottom: 10px; font-weight: 600; padding-left: 4px; }
 mark { background: #fef08a; color: #000; padding: 0 2px; border-radius: 2px; }
-
-input, select { padding:12px; border-radius:10px; border: 1.5px solid #cbd5e1; font-size:14px; width:100%; margin-bottom:10px; box-sizing: border-box; }
-.btn { background:var(--blue); color:#fff; padding:14px; border-radius:12px; font-size:16px; font-weight:600; border:none; cursor:pointer; width:100%; margin-bottom: 8px; }
-.btn-top { width:auto; padding:8px 16px; margin-bottom: 0; }
-
-#filterMenu { display: none; margin-bottom: 15px; }
-.filter-group { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-.filter-label { width: 100%; font-size: 10px; font-weight: 700; color: var(--gray); text-transform: uppercase; margin-bottom: 4px; }
-.filter-btn { background:#fff; border:1px solid #cbd5e1; padding:8px 14px; border-radius:20px; font-size:12px; cursor:pointer; font-weight:600; color: var(--gray); }
-.filter-btn.active { background:var(--blue); color:#fff; border-color: var(--blue); }
-
-.card { background:#fff; border-radius:16px; padding:16px; margin-bottom:12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-.design-header { display:flex; justify-content:space-between; align-items:center; cursor: pointer; padding-bottom: 8px; }
-.design-title { font-weight:700; color:var(--blue); text-transform:uppercase; font-size:12px; display: flex; align-items: center; gap: 6px; }
-.model-row { display:flex; justify-content:space-between; align-items:center; padding: 10px 0; border-bottom:1px solid #f1f5f9; user-select: none; }
-.controls { display:flex; align-items:center; gap:12px; }
-.action { width:34px; height:34px; border-radius:10px; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size: 18px; font-weight: bold; }
+.card { background:#fff; border-radius:12px; padding:12px; margin-bottom:8px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); position: relative; overflow: hidden; }
+.model-row { display:flex; justify-content:space-between; align-items:center; }
+.controls { display:flex; align-items:center; gap:10px; }
+.action { width:34px; height:34px; border-radius:8px; color:#fff; border:none; cursor:pointer; font-size: 18px; font-weight: bold; }
 .add { background:var(--green); } .sub { background:var(--red); }
-.stock { min-width:32px; text-align:center; font-weight:700; font-size: 16px; }
-.low-alert { color: var(--red); font-weight: 900; }
-.hidden { display: none; }
+.stock { min-width:30px; text-align:center; font-weight:800; font-size: 16px; }
+
+#addPanel, #filterMenu { display: none; }
+input { padding:10px; border-radius:8px; border: 1.5px solid #cbd5e1; font-size:14px; width:100%; margin-bottom:8px; box-sizing: border-box; }
+.btn { background:var(--blue); color:#fff; padding:12px; border-radius:10px; font-size:13px; font-weight:600; border:none; cursor:pointer; width:100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
 </style>
 </head>
 <body>
 
 <header>
-    <span>📱 Phonezone</span>
-    <span id="status">CONNECTING...</span>
-    <button class="btn btn-top" id="addToggle">＋ Add</button>
+    <span>📱 Phonezone Stock</span>
+    <span id="status" class="offline">OFFLINE</span>
+    <button class="btn" style="width:auto; padding:6px 12px;" onclick="toggleAdd()">＋ Add</button>
 </header>
 
 <div class="alert-bar">
-    <div class="alert-chip bg-red" id="chip-out">
-        <span class="chip-val" id="count-out">0</span>
-        <span class="chip-lbl">Out of Stock</span>
+    <div class="alert-chip bg-red" id="chip-out" onclick="toggleFilter('out')">
+        <span style="font-size:18px; font-weight:900;" id="count-out">0</span>
+        <span style="font-size:9px; font-weight:700;">OUT OF STOCK</span>
     </div>
-    <div class="alert-chip bg-orange" id="chip-low">
-        <span class="chip-val" id="count-low">0</span>
-        <span class="chip-lbl">Low (1 Left)</span>
+    <div class="alert-chip bg-orange" id="chip-low" onclick="toggleFilter('low')">
+        <span style="font-size:18px; font-weight:900;" id="count-low">0</span>
+        <span style="font-size:9px; font-weight:700;">LOW STOCK</span>
     </div>
 </div>
 
 <div class="topbar">
-  <div class="search-container">
-    <input id="searchField" placeholder="Search (e.g. Hard A54)..." autocomplete="off">
-    <button id="clearSearch">✕</button>
-  </div>
-  <button class="btn-icon" id="filterToggle">⚙️</button>
+    <input id="searchField" placeholder="Search brands or models..." oninput="render()">
+    <button class="btn-icon" onclick="toggleSettings()">⚙️</button>
 </div>
-<div id="resultCount">Loading items...</div>
 
 <div id="filterMenu" class="card">
-    <div class="filter-label">Brands</div>
-    <div id="brandList" class="filter-group"></div>
-    <div class="filter-label" style="margin-top:10px;">Designs</div>
-    <div id="designFilterList" class="filter-group"></div>
-    <div style="display: flex; gap: 8px; margin-top: 15px;">
-        <button class="btn" id="pdfBtn" style="background:var(--blue); flex: 1; font-size: 12px; padding: 12px;">📥 PDF</button>
-        <button class="btn" id="resetFilters" style="background:var(--gray); flex: 1; font-size: 12px; padding: 12px;">🔄 Reset</button>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <button class="btn" onclick="exportBackup()" style="background:var(--green);">💾 Export XL</button>
+        <button class="btn" onclick="document.getElementById('importFile').click()" style="background:var(--orange);">📁 Upload XL</button>
+        <button class="btn" onclick="exportPDF()" style="background:var(--red); grid-column: span 2;">📥 Download PDF Report</button>
+        <input type="file" id="importFile" accept=".xlsx, .xls" style="display:none" onchange="importBulk(this)">
     </div>
 </div>
 
-<div id="addPanel" class="card" style="display:none">
-  <select id="selDesign"></select>
-  <input id="inDesign" placeholder="OR New Design Name">
-  <input id="inBrand" placeholder="Brand (e.g. SAMSUNG)">
-  <input id="inModel" placeholder="Model (e.g. A54)">
-  <input id="inStock" type="number" placeholder="Initial Stock" value="0">
-  <button id="saveBtn" class="btn">SAVE TO CLOUD</button>
-  <div style="border: 1.5px dashed var(--blue); padding: 10px; border-radius: 12px; text-align: center; margin-top: 15px;">
-    <button class="btn" id="downloadTemplate" style="background: #1d6f42; font-size: 12px; padding: 10px; width: 100%;">📑 Template</button>
-    <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" style="display: none;">
-    <button class="btn" onclick="document.getElementById('excelUpload').click()" style="background: var(--gray); font-size: 12px; padding: 10px; margin-top: 5px; width: 100%;">📁 Upload Excel</button>
-  </div>
+<div id="addPanel" class="card">
+  <input id="inBrand" placeholder="Brand Name (e.g. APPLE)">
+  <input id="inModel" placeholder="Model Name (e.g. IPHONE 15)">
+  <input id="inStock" type="number" value="10">
+  <button class="btn" onclick="saveNew()">SAVE TO CLOUD</button>
 </div>
 
 <div id="listView"></div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
+<script>
   const firebaseConfig = {
     apiKey: "AIzaSyAmKUGD5Jx7E86DwJRi42sZd3t7bdwvzXo",
-    authDomain: "coverstock-3d6b0.firebaseapp.com",
     databaseURL: "https://coverstock-3d6b0-default-rtdb.asia-southeast1.firebasedatabase.app",
     projectId: "coverstock-3d6b0",
-    storageBucket: "coverstock-3d6b0.firebasestorage.app",
-    messagingSenderId: "82971824678",
-    appId: "1:82971824678:web:8b00d96b9e84d840cc8ce7"
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  const inventoryRef = ref(db, 'inventory');
-  const connectedRef = ref(db, '.info/connected');
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const inventoryRef = db.ref('inventory_mixed');
 
-  let store = JSON.parse(localStorage.getItem('phonezone_db')) || { designs: [], lastSync: 0 };
-  if (!Array.isArray(store.designs)) store.designs = [];
+  let store = JSON.parse(localStorage.getItem('phonezone_mixed')) || { models: [], lastSync: 0 };
+  let filterState = 'all';
+  let pressTimer;
 
-  let collapsedStates = {}; 
-  let currBrand = 'ALL';
-  let currDesignFilter = 'ALL';
-  let filterLow = false, filterOut = false;
-  let longPressTimer;
-
-  const normalize = (t) => (t || "").toLowerCase().replace(/[^a-z0-9]/g, '');
-  const naturalSort = (a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true });
-
-  const getGlobalStockMap = () => {
-    const map = {};
-    store.designs.forEach(d => { (d.models || []).forEach(m => { map[m.name] = (map[m.name] || 0) + m.stock; }); });
-    return map;
-  };
-
-  const highlightText = (text, query) => {
+  function highlight(text, query) {
     if (!query) return text;
-    const keywords = query.split(' ').filter(k => k.length > 0);
-    let highlighted = text;
-    keywords.forEach(key => {
-        const regex = new RegExp(`(${key})`, 'gi');
-        highlighted = highlighted.replace(regex, '<mark>$1</mark>');
-    });
-    return highlighted;
-  };
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return parts.map(part => part.toLowerCase() === query.toLowerCase() ? `<mark>${part}</mark>` : part).join('');
+  }
 
-  const renderList = () => {
+  function render() {
     const list = document.getElementById('listView');
-    const sel = document.getElementById('selDesign');
-    const bGroup = document.getElementById('brandList');
-    const dGroup = document.getElementById('designFilterList');
-    const searchVal = document.getElementById('searchField').value.trim();
-    const keywords = searchVal.toLowerCase().split(' ').filter(k => k.length > 0);
-    
-    document.getElementById('clearSearch').style.display = searchVal ? 'block' : 'none';
-    const globalStockMap = getGlobalStockMap();
-    let totalOut = 0, totalLow = 0, totalFound = 0;
-    
-    Object.values(globalStockMap).forEach(qty => { if(qty === 0) totalOut++; if(qty === 1) totalLow++; });
-    document.getElementById('count-out').innerText = totalOut;
-    document.getElementById('count-low').innerText = totalLow;
-
+    const search = document.getElementById('searchField').value.trim().toLowerCase();
+    let outCount = 0, lowCount = 0;
     list.innerHTML = "";
-    const prevSel = sel.value;
-    sel.innerHTML = '<option value="">-- Existing Design --</option>';
-    const brands = new Set();
-    const designsSet = new Set();
 
-    store.designs.sort(naturalSort).forEach(des => {
-      designsSet.add(des.name);
-      sel.innerHTML += `<option value="${des.id}">${des.name}</option>`;
-      const designQty = (des.models || []).reduce((sum, m) => sum + m.stock, 0);
-
-      let filtered = (des.models || []).filter(m => {
-        brands.add(m.name.split(' ')[0]);
-        const mK = keywords.every(key => normalize(m.name).includes(normalize(key)) || normalize(des.name).includes(normalize(key)));
-        const mB = currBrand === 'ALL' || m.name.toUpperCase().startsWith(currBrand);
-        const mD = currDesignFilter === 'ALL' || des.name === currDesignFilter;
-        const gs = globalStockMap[m.name];
-        let mSt = true;
-        if(filterLow) mSt = (gs === 1);
-        if(filterOut) mSt = (gs === 0);
-        return mK && mB && mD && mSt;
-      });
-
-      if (!filtered.length) return;
-      totalFound += filtered.length;
-      filtered.sort(naturalSort);
-
-      const card = document.createElement('div');
-      card.className = "card";
-      card.innerHTML = `
-        <div class="design-header" onclick="toggleCol(${des.id})">
-            <div class="design-title"><span>${collapsedStates[des.id] ? '▶' : '▼'}</span> ${highlightText(des.name, searchVal)} <small>(${designQty} pcs)</small></div>
-            <div style="display:flex; gap:12px;">
-                <span onclick="event.stopPropagation(); renameDesign(${des.id})">✏️</span>
-                <span style="color:var(--red);" onclick="event.stopPropagation(); deleteFullDesign(${des.id})">🗑️</span>
-            </div>
-        </div>
-        <div class="${collapsedStates[des.id] ? 'hidden' : ''}">${filtered.map(m => `
-            <div class="model-row" 
-                 onmousedown="handlePressStart(${des.id}, ${m.id})" 
-                 onmouseup="handlePressEnd()" 
-                 onmouseleave="handlePressEnd()"
-                 ontouchstart="handlePressStart(${des.id}, ${m.id})" 
-                 ontouchend="handlePressEnd()">
-                <div style="font-size:14px; flex:1;">${highlightText(m.name, searchVal)}</div>
-                <div class="controls">
-                    <div class="action sub" onclick="modStock(${des.id}, ${m.id}, -1)">−</div>
-                    <div class="stock ${(globalStockMap[m.name] <= 1) ? 'low-alert' : ''}">${m.stock}</div>
-                    <div class="action add" onclick="modStock(${des.id}, ${m.id}, 1)">＋</div>
-                </div>
-            </div>`).join('')}</div>`;
-      list.appendChild(card);
+    store.models.forEach(m => {
+        if(m.stock === 0) outCount++;
+        if(m.stock === 1) lowCount++;
     });
+    document.getElementById('count-out').innerText = outCount;
+    document.getElementById('count-low').innerText = lowCount;
 
-    document.getElementById('resultCount').innerText = searchVal ? `Found ${totalFound} items` : `Showing all items`;
-    bGroup.innerHTML = `<button class="filter-btn ${currBrand==='ALL'?'active':''}" onclick="setBrand('ALL')">All</button>`;
-    Array.from(brands).sort().forEach(b => { bGroup.innerHTML += `<button class="filter-btn ${currBrand===b?'active':''}" onclick="setBrand('${b}')">${b}</button>`; });
-    dGroup.innerHTML = `<button class="filter-btn ${currDesignFilter==='ALL'?'active':''}" onclick="setDesignFilter('ALL')">All</button>`;
-    Array.from(designsSet).sort().forEach(d => { dGroup.innerHTML += `<button class="filter-btn ${currDesignFilter===d?'active':''}" onclick="setDesignFilter('${d}')">${d}</button>`; });
-    
-    if (prevSel) sel.value = prevSel;
-  };
+    const filtered = store.models.filter(m => {
+        const matchesSearch = m.name.toLowerCase().includes(search);
+        if(search && !matchesSearch) return false;
+        if(filterState === 'out' && m.stock !== 0) return false;
+        if(filterState === 'low' && m.stock !== 1) return false;
+        return true;
+    }).sort((a,b) => a.name.localeCompare(b.name));
 
-  const performSync = () => {
-    store.lastSync = Date.now();
-    localStorage.setItem('phonezone_db', JSON.stringify(store));
-    set(inventoryRef, store);
-    renderList();
-  };
+    filtered.forEach(m => {
+        const card = document.createElement('div');
+        card.className = "card model-row";
+        
+        // Long Press Logic
+        card.addEventListener('touchstart', (e) => startPress(e, m.id, m.name));
+        card.addEventListener('touchend', endPress);
+        card.addEventListener('mousedown', (e) => startPress(e, m.id, m.name));
+        card.addEventListener('mouseup', endPress);
 
-  /* Long Press Logic */
-  window.handlePressStart = (desId, modelId) => {
-    longPressTimer = setTimeout(() => {
-        killModel(desId, modelId);
-    }, 800); // 0.8 seconds long press
-  };
+        card.innerHTML = `
+            <div style="font-weight:600; flex:1;">${highlight(m.name, search)}</div>
+            <div class="controls">
+                <button class="action sub" onclick="event.stopPropagation(); changeStock(${m.id}, -1)">−</button>
+                <div class="stock" style="color:${m.stock==0?'var(--red)':m.stock==1?'var(--orange)':'#000'}">${m.stock}</div>
+                <button class="action add" onclick="event.stopPropagation(); changeStock(${m.id}, 1)">＋</button>
+            </div>`;
+        list.appendChild(card);
+    });
+  }
 
-  window.handlePressEnd = () => {
-    clearTimeout(longPressTimer);
-  };
-
-  window.killModel = (dId, mId) => {
-    if(confirm("Delete this model from the list?")) {
-        const dIdx = store.designs.findIndex(x => x.id === dId);
-        if (dIdx > -1) {
-            store.designs[dIdx].models = store.designs[dIdx].models.filter(x => x.id !== mId);
-            if(!store.designs[dIdx].models.length) store.designs.splice(dIdx, 1);
-            performSync();
+  function startPress(e, id, name) {
+    pressTimer = setTimeout(() => {
+        if(confirm(`Delete ${name} permanently?`)) {
+            store.models = store.models.filter(x => x.id !== id);
+            sync();
         }
-    }
+    }, 800); // 0.8 seconds to trigger
+  }
+
+  function endPress() {
+    clearTimeout(pressTimer);
+  }
+
+  function sync() {
+    store.lastSync = Date.now();
+    localStorage.setItem('phonezone_mixed', JSON.stringify(store));
+    render();
+    inventoryRef.set(store);
+  }
+
+  window.changeStock = (id, amt) => {
+    const m = store.models.find(x => x.id === id);
+    if(m) { m.stock = Math.max(0, m.stock + amt); sync(); }
   };
 
-  onValue(connectedRef, (snap) => {
-    const s = document.getElementById('status');
-    if (snap.val() === true) { s.innerText = "ONLINE"; s.style.background = "#dcfce7"; s.style.color = "#16a34a"; }
-    else { s.innerText = "OFFLINE"; s.style.background = "#fee2e2"; s.style.color = "#ef4444"; }
-  });
-
-  onValue(inventoryRef, (snapshot) => {
-    const cloud = snapshot.val();
-    if (cloud && cloud.lastSync > store.lastSync) { store = cloud; renderList(); }
-  });
-
-  /* Logic & Buttons */
-  window.setBrand = (b) => { currBrand = b; renderList(); };
-  window.setDesignFilter = (d) => { currDesignFilter = d; renderList(); };
-  window.toggleCol = (id) => { collapsedStates[id] = !collapsedStates[id]; renderList(); };
-  window.deleteFullDesign = (id) => { if(confirm("Delete design?")) { store.designs = store.designs.filter(x => x.id !== id); performSync(); } };
-  window.renameDesign = (id) => { const d = store.designs.find(x => x.id === id); const n = prompt("New Name:", d.name); if(n) { d.name = n.trim(); performSync(); } };
-  window.modStock = (dId, mId, amt) => {
-    const d = store.designs.find(x => x.id === dId);
-    const m = d.models.find(x => x.id === mId);
-    m.stock = Math.max(0, m.stock + amt);
-    performSync();
+  window.saveNew = () => {
+    const b = document.getElementById('inBrand').value.trim().toUpperCase();
+    const m = document.getElementById('inModel').value.trim().toUpperCase();
+    const s = parseInt(document.getElementById('inStock').value) || 0;
+    if(!b || !m) return alert("Enter Details");
+    const name = b + " " + m;
+    const existing = store.models.find(x => x.name === name);
+    if(existing) existing.stock += s;
+    else store.models.push({ id: Date.now(), name: name, stock: s });
+    document.getElementById('inModel').value = "";
+    sync();
   };
 
-  document.getElementById('chip-out').onclick = () => { filterOut = !filterOut; filterLow = false; renderList(); };
-  document.getElementById('chip-low').onclick = () => { filterLow = !filterLow; filterOut = false; renderList(); };
-  document.getElementById('searchField').oninput = renderList;
-  document.getElementById('clearSearch').onclick = () => { document.getElementById('searchField').value = ""; renderList(); };
-  document.getElementById('resetFilters').onclick = () => { currBrand = 'ALL'; currDesignFilter = 'ALL'; filterLow = false; filterOut = false; document.getElementById('searchField').value = ""; renderList(); };
-  document.getElementById('filterToggle').onclick = () => { const m = document.getElementById('filterMenu'); m.style.display = m.style.display==='none'?'block':'none'; };
-  document.getElementById('addToggle').onclick = () => { const p = document.getElementById('addPanel'); p.style.display = p.style.display==='none'?'block':'none'; };
-  
-  document.getElementById('saveBtn').onclick = () => {
-    const brand = document.getElementById('inBrand').value.trim().toUpperCase();
-    const modelEl = document.getElementById('inModel');
-    const model = modelEl.value.trim().toUpperCase();
-    const stock = parseInt(document.getElementById('inStock').value) || 0;
-    const dIn = document.getElementById('inDesign');
-    const dSel = document.getElementById('selDesign');
-    
-    let desName = dIn.value.trim() || (dSel.selectedIndex > 0 ? dSel.options[dSel.selectedIndex].text : "");
-    if (!brand || !model || !desName) return alert("Fill all fields");
-
-    let dIdx = store.designs.findIndex(d => d.name.toLowerCase() === desName.toLowerCase());
-    if (dIdx === -1) {
-        const newId = Date.now();
-        store.designs.push({ id: newId, name: desName, models: [] });
-        dIdx = store.designs.length - 1;
-    }
-
-    const fullModel = `${brand} ${model}`;
-    const mIdx = store.designs[dIdx].models.findIndex(x => x.name === fullModel);
-    
-    if (mIdx > -1) store.designs[dIdx].models[mIdx].stock += stock;
-    else store.designs[dIdx].models.push({ id: Date.now(), name: fullModel, stock: stock });
-
-    const finalDesId = store.designs[dIdx].id;
-    dIn.value = ""; modelEl.value = ""; modelEl.focus(); 
-    performSync();
-    setTimeout(() => { document.getElementById('selDesign').value = finalDesId; }, 50);
+  window.toggleFilter = (type) => {
+    filterState = (filterState === type) ? 'all' : type;
+    document.getElementById('chip-out').classList.toggle('active', filterState === 'out');
+    document.getElementById('chip-low').classList.toggle('active', filterState === 'low');
+    render();
   };
 
-  document.getElementById('downloadTemplate').onclick = () => {
-    const ws = XLSX.utils.aoa_to_sheet([["Design", "Brand", "Model", "Stock"], ["Hard", "APPLE", "IPHONE 13", 10]]);
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Stock");
-    XLSX.writeFile(wb, "Phonezone_Template.xlsx");
+  window.toggleAdd = () => { document.getElementById('addPanel').style.display = (document.getElementById('addPanel').style.display === 'block') ? 'none' : 'block'; };
+  window.toggleSettings = () => { document.getElementById('filterMenu').style.display = (document.getElementById('filterMenu').style.display === 'block') ? 'none' : 'block'; };
+
+  window.exportBackup = () => {
+    const data = store.models.map(m => {
+        const parts = m.name.split(' ');
+        return { Brand: parts[0], Model: parts.slice(1).join(' '), Stock: m.stock };
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+    XLSX.writeFile(wb, "Phonezone_Backup.xlsx");
   };
 
-  document.getElementById('excelUpload').onchange = (e) => {
+  window.importBulk = (input) => {
     const reader = new FileReader();
-    reader.onload = (evt) => {
-        const wb = XLSX.read(new Uint8Array(evt.target.result), {type: 'array'});
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-        rows.forEach(r => {
-            const dN = (r.Design || "").trim(), br = (r.Brand || "").trim().toUpperCase(), md = (r.Model || "").trim().toUpperCase(), st = parseInt(r.Stock) || 0;
-            if(!dN || !br || !md) return;
-            let dIdx = store.designs.findIndex(d => d.name.toLowerCase() === dN.toLowerCase());
-            if(dIdx === -1) { store.designs.push({id: Date.now() + Math.random(), name: dN, models: []}); dIdx = store.designs.length-1; }
-            const full = `${br} ${md}`;
-            const mIdx = store.designs[dIdx].models.findIndex(m => m.name === full);
-            if(mIdx > -1) store.designs[dIdx].models[mIdx].stock += st;
-            else store.designs[dIdx].models.push({id: Date.now() + Math.random(), name: full, stock: st});
+    reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+        rows.forEach(row => {
+            const b = row.Brand ? row.Brand.toUpperCase().trim() : "";
+            const m = row.Model ? row.Model.toUpperCase().trim() : "";
+            const stock = parseInt(row.Stock) || 0;
+            if(!b || !m) return;
+            const name = b + " " + m;
+            const existing = store.models.find(x => x.name === name);
+            if(existing) existing.stock = stock;
+            else store.models.push({ id: Date.now() + Math.random(), name: name, stock: stock });
         });
-        performSync();
+        sync();
+        alert("Upload Successful!");
     };
-    reader.readAsArrayBuffer(e.target.files[0]);
+    reader.readAsArrayBuffer(input.files[0]);
   };
 
-  renderList();
+  window.exportPDF = () => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const rows = [];
+    const search = document.getElementById('searchField').value.trim().toLowerCase();
+
+    const filtered = store.models.filter(m => {
+        if(search && !m.name.toLowerCase().includes(search)) return false;
+        if(filterState === 'out' && m.stock !== 0) return false;
+        if(filterState === 'low' && m.stock !== 1) return false;
+        return true;
+    }).sort((a,b) => a.name.localeCompare(b.name));
+
+    filtered.forEach(m => rows.push([m.name, m.stock]));
+    doc.text("Phonezone Stock Report", 14, 15);
+    doc.autoTable({ head: [['Item Name', 'Qty']], body: rows, startY: 20 });
+    doc.save(`Stock_Report_${filterState}.pdf`);
+  };
+
+  db.ref('.info/connected').on('value', snap => {
+    const s = document.getElementById('status');
+    s.innerText = snap.val() ? "ONLINE" : "OFFLINE";
+    s.className = snap.val() ? "online" : "offline";
+  });
+
+  inventoryRef.on('value', snap => {
+    const cloud = snap.val();
+    if(cloud && cloud.lastSync > store.lastSync) {
+        store = cloud;
+        localStorage.setItem('phonezone_mixed', JSON.stringify(store));
+        render();
+    }
+  });
+
+  render();
 </script>
 </body>
 </html>
